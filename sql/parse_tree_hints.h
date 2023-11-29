@@ -300,12 +300,7 @@ class PT_hint_force_join : public PT_hint {
         force_join(join_method) {
           printf("FORCE JOIN hint made \n");
         }
-  /**
-    Function initializes MAX_EXECUTION_TIME hint
-    @param pc   Pointer to Parse_context object
-    @return  true in case of error,
-             false otherwise
-  */
+        
   bool do_contextualize(Parse_context *pc) override;
 };
 

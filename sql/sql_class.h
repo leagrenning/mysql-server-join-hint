@@ -942,7 +942,6 @@ class THD : public MDL_context_owner,
 
 public: 
 LEX_CSTRING *force_join = nullptr;
-//TODO: mulig vi må ha noe mer inn her
 
 public:
 
