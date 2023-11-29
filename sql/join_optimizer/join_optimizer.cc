@@ -3830,39 +3830,57 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       // Finally, if either of the sides are parameterized on something
       // external, flipping the order will not necessarily be allowed (and would
       // cause us to not give a hash join for these tables at all).
-      if (is_commutative &&
-          !Overlaps(left_path->parameter_tables | right_path->parameter_tables,
-                    RAND_TABLE_BIT)) {
-        if (left_path->num_output_rows() < right_path->num_output_rows()) {
-          ProposeHashJoin(right, left, right_path, left_path, edge, new_fd_set,
-                          new_obsolete_orderings,
-                          /*rewrite_semi_to_inner=*/false, &wrote_trace);
-        } else {
-          ProposeHashJoin(left, right, left_path, right_path, edge, new_fd_set,
-                          new_obsolete_orderings,
-                          /*rewrite_semi_to_inner=*/false, &wrote_trace);
-        }
-      } else {
-        ProposeHashJoin(left, right, left_path, right_path, edge, new_fd_set,
-                        new_obsolete_orderings,
-                        /*rewrite_semi_to_inner=*/false, &wrote_trace);
-        if (is_commutative || can_rewrite_semi_to_inner) {
-          ProposeHashJoin(right, left, right_path, left_path, edge, new_fd_set,
-                          new_obsolete_orderings,
-                          /*rewrite_semi_to_inner=*/can_rewrite_semi_to_inner,
-                          &wrote_trace);
-        }
-      }
+      //bool tryHash = true;
+      //bool tryNestedLoop = true;
 
-      ProposeNestedLoopJoin(left, right, left_path, right_path, edge,
-                            /*rewrite_semi_to_inner=*/false, new_fd_set,
-                            new_obsolete_orderings, &wrote_trace);
-      if (is_commutative || can_rewrite_semi_to_inner) {
-        ProposeNestedLoopJoin(
-            right, left, right_path, left_path, edge,
-            /*rewrite_semi_to_inner=*/can_rewrite_semi_to_inner, new_fd_set,
-            new_obsolete_orderings, &wrote_trace);
-      }
+      // if (this->m_thd->force_join != nullptr) {
+      //   if ((strcmp(this->m_thd->force_join->str, "NLJ") == 0)) {
+      //     tryHash = false;
+      //   }
+
+      //   if ((strcmp(this->m_thd->force_join->str, "HJ") == 0)){
+      //     tryNestedLoop = false;
+      //   } 
+      // }
+
+      //if (tryHash) {
+          if (is_commutative &&
+              !Overlaps(left_path->parameter_tables | right_path->parameter_tables,
+                        RAND_TABLE_BIT)) {
+            if (left_path->num_output_rows() < right_path->num_output_rows()) {
+              ProposeHashJoin(right, left, right_path, left_path, edge, new_fd_set,
+                              new_obsolete_orderings,
+                              /*rewrite_semi_to_inner=*/false, &wrote_trace);
+            } else {
+              ProposeHashJoin(left, right, left_path, right_path, edge, new_fd_set,
+                              new_obsolete_orderings,
+                              /*rewrite_semi_to_inner=*/false, &wrote_trace);
+            }
+          } else {
+            ProposeHashJoin(left, right, left_path, right_path, edge, new_fd_set,
+                            new_obsolete_orderings,
+                            /*rewrite_semi_to_inner=*/false, &wrote_trace);
+            if (is_commutative || can_rewrite_semi_to_inner) {
+              ProposeHashJoin(right, left, right_path, left_path, edge, new_fd_set,
+                              new_obsolete_orderings,
+                              /*rewrite_semi_to_inner=*/can_rewrite_semi_to_inner,
+                              &wrote_trace);
+            }
+          }
+      //}
+        
+      
+      //if (tryNestedLoop) {
+        ProposeNestedLoopJoin(left, right, left_path, right_path, edge,
+                              /*rewrite_semi_to_inner=*/false, new_fd_set,
+                              new_obsolete_orderings, &wrote_trace);
+        if (is_commutative || can_rewrite_semi_to_inner) {
+          ProposeNestedLoopJoin(
+              right, left, right_path, left_path, edge,
+              /*rewrite_semi_to_inner=*/can_rewrite_semi_to_inner, new_fd_set,
+              new_obsolete_orderings, &wrote_trace);
+        }
+     // }
       m_overflow_bitset_mem_root.ClearForReuse();
 
       if (m_secondary_engine_planning_complexity_check != nullptr) {
@@ -3952,6 +3970,8 @@ void CostingReceiver::ProposeHashJoin(
     OrderingSet new_obsolete_orderings, bool rewrite_semi_to_inner,
     bool *wrote_trace) {
   if (!SupportedEngineFlag(SecondaryEngineFlag::SUPPORTS_HASH_JOIN)) return;
+
+  if (this->m_thd->force_join != nullptr && strcmp(this->m_thd->force_join->str, "HJ") != 0) return;
 
   if (Overlaps(left_path->parameter_tables, right) ||
       Overlaps(right_path->parameter_tables, left | RAND_TABLE_BIT)) {
@@ -4522,6 +4542,10 @@ void CostingReceiver::ProposeNestedLoopJoin(
     bool *wrote_trace) {
   if (!SupportedEngineFlag(SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN))
     return;
+
+  
+  
+  if (this->m_thd->force_join != nullptr && strcmp(this->m_thd->force_join->str, "NLJ") != 0) return;
 
   if (Overlaps(left_path->parameter_tables, right)) {
     // The outer table cannot pick up values from the inner,
